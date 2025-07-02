@@ -210,6 +210,15 @@
         }
 
         async function performAnalysis(isRefinement = false) {
+            // *** START FIX ***
+            // Replace "" with your actual API Key from Google AI Studio
+            const apiKey = "AIzaSyA_tujylnqd9WjACbnoALCYRs8bUvRBGyE"; 
+            if (apiKey === "PASTE_YOUR_API_KEY_HERE") {
+                alert("API Key is missing. Please paste your Google AI Studio API key into the script.");
+                return;
+            }
+            // *** END FIX ***
+
             resultsContainer.classList.remove('hidden');
             loader.classList.remove('hidden');
             analysisResult.classList.add('hidden');
@@ -251,7 +260,6 @@
                     generationConfig: { responseMimeType: "application/json" }
                 };
 
-                const apiKey = ""; // Handled by environment
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                 const response = await fetch(apiUrl, {
