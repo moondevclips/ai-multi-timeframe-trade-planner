@@ -28,10 +28,14 @@
         }
         .upload-box {
             border: 2px dashed #4b5563; /* gray-600 */
-            transition: border-color 0.2s;
+            transition: border-color 0.2s, background-color 0.2s;
         }
         .upload-box.uploaded {
             border-color: #10b981; /* green-500 */
+        }
+        .upload-box.dragging-over {
+            border-color: #2563eb; /* blue-600 */
+            background-color: rgba(37, 99, 235, 0.1);
         }
         .result-card {
             background-color: #1f2937; /* gray-800 */
@@ -159,7 +163,7 @@
                 <label for="uploader${slotId}" class="cursor-pointer">
                     <img id="preview${slotId}" src="" class="hidden mx-auto h-24 mb-2 rounded">
                     <svg id="icon${slotId}" class="mx-auto h-12 w-12 text-gray-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                    <p class="text-sm text-blue-400">Click to upload</p>
+                    <p class="text-sm text-blue-400">Click or drag file</p>
                     <p id="fileName${slotId}" class="text-xs text-gray-500 truncate"></p>
                 </label>
                 <input id="uploader${slotId}" type="file" class="sr-only" accept="image/*" data-slot-id="${slotId}">
@@ -173,16 +177,18 @@
         function setupUploaderLogic(slotId) {
             const uploader = document.getElementById(`uploader${slotId}`);
             const timeframeSelect = document.querySelector(`select[data-slot-id="${slotId}"]`);
+            const uploadBox = document.getElementById(`uploadSlot${slotId}`);
             const slotData = chartSlots.find(s => s.id === slotId);
 
             timeframeSelect.addEventListener('change', (e) => {
                 slotData.timeframe = e.target.value;
             });
 
-            uploader.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
+            const handleFile = (file) => {
+                if (!file || !file.type.startsWith('image/')) {
+                    alert('Please upload an image file.');
+                    return;
+                }
                 slotData.fileName = file.name;
                 document.getElementById(`fileName${slotId}`).textContent = file.name;
                 const reader = new FileReader();
@@ -191,11 +197,33 @@
                     preview.src = e.target.result;
                     preview.classList.remove('hidden');
                     document.getElementById(`icon${slotId}`).classList.add('hidden');
-                    document.getElementById(`uploadSlot${slotId}`).classList.add('uploaded');
+                    uploadBox.classList.add('uploaded');
                     slotData.base64 = e.target.result.split(',')[1];
                     checkButtonsState();
                 }
                 reader.readAsDataURL(file);
+            };
+
+            uploader.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                handleFile(file);
+            });
+
+            // Drag and Drop Event Listeners
+            uploadBox.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                uploadBox.classList.add('dragging-over');
+            });
+
+            uploadBox.addEventListener('dragleave', () => {
+                uploadBox.classList.remove('dragging-over');
+            });
+
+            uploadBox.addEventListener('drop', (event) => {
+                event.preventDefault();
+                uploadBox.classList.remove('dragging-over');
+                const file = event.dataTransfer.files[0];
+                handleFile(file);
             });
         }
         
@@ -210,14 +238,12 @@
         }
 
         async function performAnalysis(isRefinement = false) {
-            // *** START FIX ***
-            // Replace "" with your actual API Key from Google AI Studio
-            const apiKey = "AIzaSyA_tujylnqd9WjACbnoALCYRs8bUvRBGyE"; 
-            if (apiKey === "PASTE_YOUR_API_KEY_HERE") {
-                alert("API Key is missing. Please paste your Google AI Studio API key into the script.");
+            // IMPORTANT: Replace with your actual API Key from Google AI Studio
+            const apiKey = "PASTE_YOUR_API_KEY_HERE"; 
+            if (apiKey === "PASTE_YOUR_API_KEY_HERE" || apiKey === "") {
+                alert("API Key is missing. Please get a key from Google AI Studio and paste it into the script.");
                 return;
             }
-            // *** END FIX ***
 
             resultsContainer.classList.remove('hidden');
             loader.classList.remove('hidden');
@@ -230,21 +256,26 @@
 
                 const analysisJsonStructure = activeSlots.map(s => `"${s.timeframe}": { "summary": "...", "patterns": [], "indicators": "..." }`).join(',');
 
+                const basePrompt = `You are an expert institutional-level technical analyst. Your task is to perform a deep, multi-layered analysis of the provided trading charts to formulate a high-quality swing trade setup.
+
+                Your analytical process must follow this 3-level framework:
+                1.  **Level 1 (Retail Zone):** First, identify the most obvious, clean, horizontal support and resistance levels that 90% of retail traders would easily spot. Acknowledge these as high-liquidity, but low-quality, zones.
+                2.  **Level 2 (Stop-Hunt Zone):** Second, identify the price structures immediately above the retail resistance and below the retail support. Recognize these as areas where stop-loss orders are clustered and vulnerable to liquidity grabs.
+                3.  **Level 3 (Institutional Zone - Your Target):** Finally, look beyond the first two levels to find institutionally significant zones for your final trade plan. Specifically search for subtle but powerful structures like Order Blocks, Fair Value Gaps (Imbalances), and institutionally respected Fibonacci levels (e.g., 0.786). These are your high-quality target zones.
+
+                **Goal:** Formulate a complete trade plan based on your Level 3 analysis. The plan should be a swing trade designed with enough momentum to reach its take profit target ideally within the 4-hour mark of the trading day.
+                `;
+
                 if (isRefinement) {
-                     prompt = `You are an expert technical analyst revising a trade plan.
-                    **Previous Analysis:** You previously analyzed charts and generated this plan: ${JSON.stringify(lastAnalysisResult)}.
-                    **New Data:** I am providing additional chart(s) on new timeframe(s).
-                    **Your Task:** Re-evaluate your entire plan. Cross-reference ALL charts (${timeframes}) provided now. How does the new data confirm, contradict, or nuance the original plan? Your output must be a single, updated, and more robust trade plan based on the sum of all information.
+                     prompt = `${basePrompt}
+                    **Refinement Task:** You have already performed an analysis and generated this plan: ${JSON.stringify(lastAnalysisResult)}. Now, you have been given new chart data. Re-evaluate your entire plan. How does the new data confirm, contradict, or nuance your previous findings? Your output must be a single, updated, and more robust trade plan based on the sum of all available information.
                     
                     Return the result as a single, minified JSON object with NO markdown formatting, following this exact structure:
                      { "tradePlan": { "entry": "...", "exit": "...", "stopLoss": "..." }, "confidence": { "probability": "...", "assessment": "..." }, "analysis": { ${analysisJsonStructure} }, "executionStrategy": "..." }`;
                 } else {
-                    prompt = `You are an expert technical analyst. Analyze these trading charts for the same asset on different timeframes: ${timeframes}. Perform a comprehensive multi-timeframe analysis.
-                    1. **Cross-Reference:** Identify converging signals. Major trend on longest timeframe, patterns on middle, entry triggers on shortest.
-                    2. **Identify Patterns:** Explicitly name candlestick and chart patterns on each timeframe.
-                    3. **Statistical Assessment:** Provide a trade probability percentage based on pattern strength, indicators, and confluence.
-                    4. **Formulate a Plan:** Create a precise trade execution plan.
-
+                    prompt = `${basePrompt}
+                    **Initial Analysis Task:** Perform your initial 3-level analysis on the provided charts and generate the trade plan.
+                    
                     Return the result as a single, minified JSON object with NO markdown formatting, following this exact structure:
                      { "tradePlan": { "entry": "...", "exit": "...", "stopLoss": "..." }, "confidence": { "probability": "...", "assessment": "..." }, "analysis": { ${analysisJsonStructure} }, "executionStrategy": "..." }`;
                 }
