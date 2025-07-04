@@ -17,7 +17,7 @@
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
 
-    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-2xl mx-auto">
+    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-3xl mx-auto">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-blue-400">Live Data AI Trade Planner</h1>
             <p class="text-gray-400 mt-2">Enter a stock symbol to get a real-time, data-driven trade plan.</p>
@@ -46,6 +46,21 @@
                     <div class="result-card p-4 rounded-lg"><p class="text-sm text-gray-400">Exit Target</p><p id="exitPoint" class="text-2xl font-bold text-red-400"></p></div>
                 </div>
                 
+                <!-- NEW: Fundamental Analysis Section -->
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                    <div class="result-card p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Company Profile & Sector</h3>
+                        <p id="companyInfo" class="text-gray-300 text-sm mb-2"></p>
+                        <p class="text-gray-300 text-sm"><strong class="text-gray-100">Sector:</strong> <span id="sector"></span></p>
+                        <p id="sectorPerformance" class="text-gray-400 text-xs mt-1"></p>
+                    </div>
+                     <div class="result-card p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Key Metrics</h3>
+                        <p class="text-gray-300 text-sm"><strong class="text-gray-100">P/E Ratio:</strong> <span id="peRatio"></span></p>
+                        <p class="text-gray-300 text-sm mt-2"><strong class="text-gray-100">Upcoming Earnings:</strong> <span id="upcomingEarnings"></span></p>
+                    </div>
+                </div>
+
                 <div class="result-card p-4 rounded-lg mb-6">
                     <h3 class="text-lg font-semibold text-blue-400 mb-2">Market Sentiment Analysis</h3>
                     <div class="flex items-center justify-center gap-4">
@@ -83,6 +98,14 @@
         const technicalSummary = document.getElementById('technicalSummary');
         const executionStrategy = document.getElementById('executionStrategy');
         const tradePlanChartCanvas = document.getElementById('tradePlanChart');
+        
+        // New Fundamental Fields
+        const companyInfo = document.getElementById('companyInfo');
+        const sector = document.getElementById('sector');
+        const sectorPerformance = document.getElementById('sectorPerformance');
+        const peRatio = document.getElementById('peRatio');
+        const upcomingEarnings = document.getElementById('upcomingEarnings');
+
         let tradeChart = null;
 
         analyzeBtn.addEventListener('click', async () => {
@@ -107,16 +130,12 @@
                     body: JSON.stringify({ symbol: symbol })
                 });
 
-                // The .json() method on the response object automatically parses the JSON.
                 const data = await response.json();
 
                 if (!response.ok) {
-                    // If the server sent an error, its message will be in data.error
                     throw new Error(data.error || `HTTP error! status: ${response.status}`);
                 }
                 
-                // *** FIX: The redundant JSON.parse() call has been removed. ***
-                // The 'data' variable is now the correct JavaScript object.
                 displayResults(data, symbol);
 
             } catch (error) {
@@ -149,6 +168,13 @@
             probability.textContent = data.confidence.probability;
             assessment.textContent = data.confidence.assessment;
             
+            // Populate new fundamental fields
+            companyInfo.textContent = data.fundamentals.companyInfo;
+            sector.textContent = data.fundamentals.sector;
+            sectorPerformance.textContent = data.fundamentals.sectorPerformance;
+            peRatio.textContent = data.fundamentals.peRatio;
+            upcomingEarnings.textContent = data.fundamentals.upcomingEarnings;
+
             technicalSummary.innerHTML = `
                 <p class="mb-2">${data.analysis.summary}</p>
                 <p class="mb-2"><strong class="text-gray-300">Patterns:</strong> ${data.analysis.patterns.join(', ')}</p>
