@@ -78,6 +78,7 @@
                     </div>
                      <div class="result-card p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-blue-400 mb-2">Earnings History</h3>
+                        <p class="text-gray-300 text-sm mb-2"><strong class="text-gray-100">P/E Ratio:</strong> <span id="peRatio"></span></p>
                         <div id="earningsHistory" class="space-y-2"></div>
                     </div>
                 </div>
@@ -152,6 +153,7 @@
         const sector = document.getElementById('sector');
         const sectorPerformance = document.getElementById('sectorPerformance');
         const earningsHistory = document.getElementById('earningsHistory');
+        const peRatio = document.getElementById('peRatio');
         
         const historicalAnalogueSummary = document.getElementById('historicalAnalogueSummary');
         const relatedNews = document.getElementById('relatedNews');
@@ -306,7 +308,6 @@
                 sector.textContent = data.fundamentals.sector || 'N/A';
                 sectorPerformance.textContent = data.fundamentals.sectorPerformance || 'N/A';
                 
-                // Safely access peRatio, defaulting to 'N/A'
                 const pe = data.fundamentals.peRatio !== undefined ? data.fundamentals.peRatio : 'N/A';
                 peRatio.textContent = pe;
 
