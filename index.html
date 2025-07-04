@@ -46,7 +46,7 @@
                     <div class="result-card p-4 rounded-lg"><p class="text-sm text-gray-400">Exit Target</p><p id="exitPoint" class="text-2xl font-bold text-red-400"></p></div>
                 </div>
                 
-                <!-- NEW: Fundamental Analysis Section -->
+                <!-- Fundamental Analysis Section -->
                 <div class="grid md:grid-cols-2 gap-4 mb-6">
                     <div class="result-card p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-blue-400 mb-2">Company Profile & Sector</h3>
@@ -71,6 +71,11 @@
 
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Probabilistic Assessment</h3><p class="text-3xl font-bold text-center mb-2" id="probability"></p><p id="assessment" class="text-gray-300"></p></div>
                 
+                <div class="result-card p-4 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Historical Analogue Analysis</h3>
+                    <p id="historicalAnalogueSummary" class="text-gray-300"></p>
+                </div>
+
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Technical Analysis Summary</h3><p id="technicalSummary" class="text-gray-300"></p></div>
 
                 <div class="result-card p-4 rounded-lg"><h3 class="text-lg font-semibold text-blue-400 mb-2">Execution Strategy</h3><p id="executionStrategy" class="text-gray-300"></p></div>
@@ -99,12 +104,15 @@
         const executionStrategy = document.getElementById('executionStrategy');
         const tradePlanChartCanvas = document.getElementById('tradePlanChart');
         
-        // New Fundamental Fields
+        // Fundamental Fields
         const companyInfo = document.getElementById('companyInfo');
         const sector = document.getElementById('sector');
         const sectorPerformance = document.getElementById('sectorPerformance');
         const peRatio = document.getElementById('peRatio');
         const upcomingEarnings = document.getElementById('upcomingEarnings');
+        
+        // Historical Analogue Field
+        const historicalAnalogueSummary = document.getElementById('historicalAnalogueSummary');
 
         let tradeChart = null;
 
@@ -168,12 +176,15 @@
             probability.textContent = data.confidence.probability;
             assessment.textContent = data.confidence.assessment;
             
-            // Populate new fundamental fields
+            // Populate fundamental fields
             companyInfo.textContent = data.fundamentals.companyInfo;
             sector.textContent = data.fundamentals.sector;
             sectorPerformance.textContent = data.fundamentals.sectorPerformance;
             peRatio.textContent = data.fundamentals.peRatio;
             upcomingEarnings.textContent = data.fundamentals.upcomingEarnings;
+
+            // Populate historical analogue field
+            historicalAnalogueSummary.textContent = data.historicalAnalogue.summary;
 
             technicalSummary.innerHTML = `
                 <p class="mb-2">${data.analysis.summary}</p>
