@@ -96,7 +96,7 @@
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Technical Analysis Summary</h3><p id="technicalSummary" class="text-gray-300"></p></div>
                 <div class="result-card p-4 rounded-lg"><h3 class="text-lg font-semibold text-blue-400 mb-2">Execution Strategy</h3><p id="executionStrategy" class="text-gray-300"></p></div>
             
-                <!-- NEW: Post-Trade Journal Section -->
+                <!-- Post-Trade Journal Section -->
                 <div id="journalSection" class="result-card p-6 rounded-lg text-center mt-6">
                     <h3 class="text-lg font-semibold text-blue-400 mb-4">Post-Trade Analysis</h3>
                     <p class="text-sm text-gray-400 mb-4">Once the trade is complete, select the outcome to generate a journal entry.</p>
@@ -160,7 +160,6 @@
         const verdictText = document.getElementById('verdictText');
         const verdictReason = document.getElementById('verdictReason');
 
-        // New Feature Elements
         const explainBtn = document.getElementById('explainBtn');
         const explanationModal = document.getElementById('explanationModal');
         const explanationText = document.getElementById('explanationText');
@@ -198,7 +197,7 @@
             loader.classList.remove('hidden');
             analysisResult.classList.add('hidden');
             errorDisplay.classList.add('hidden');
-            journalResult.classList.add('hidden'); // Hide old journal entries
+            journalResult.classList.add('hidden');
 
             try {
                 const backendUrl = 'https://python-markets-livedata-backend.onrender.com/analyze-symbol';
@@ -215,7 +214,7 @@
                     throw new Error(data.error || `HTTP error! status: ${response.status}`);
                 }
                 
-                lastAnalysisResult = data; // Save for new features
+                lastAnalysisResult = data;
                 displayResults(data, symbol);
 
             } catch (error) {
@@ -227,7 +226,6 @@
             }
         });
         
-        // --- NEW FEATURE: Explanation ---
         explainBtn.addEventListener('click', async () => {
             if (!lastAnalysisResult) return;
             explanationText.textContent = 'Asking the AI to explain...';
@@ -252,7 +250,6 @@
             explanationModal.classList.add('hidden');
         });
 
-        // --- NEW FEATURE: Journaling ---
         const handleJournalRequest = async (outcome) => {
             if (!lastAnalysisResult) return;
             journalText.textContent = 'Generating journal entry...';
@@ -304,13 +301,17 @@
             assessment.textContent = data.confidence.assessment;
             
             if (currentAssetType === 'stock' && data.fundamentals) {
-                fundamentalsSection.classList.remove('hidden');
-                companyInfo.textContent = data.fundamentals.companyInfo;
-                sector.textContent = data.fundamentals.sector;
-                sectorPerformance.textContent = data.fundamentals.sectorPerformance;
+                fundamentalsSection.style.display = 'grid';
+                companyInfo.textContent = data.fundamentals.companyInfo || 'N/A';
+                sector.textContent = data.fundamentals.sector || 'N/A';
+                sectorPerformance.textContent = data.fundamentals.sectorPerformance || 'N/A';
                 
+                // Safely access peRatio, defaulting to 'N/A'
+                const pe = data.fundamentals.peRatio !== undefined ? data.fundamentals.peRatio : 'N/A';
+                peRatio.textContent = pe;
+
                 earningsHistory.innerHTML = '';
-                if(data.fundamentals.earningsHistory && Array.isArray(data.fundamentals.earningsHistory)) {
+                if(data.fundamentals.earningsHistory && Array.isArray(data.fundamentals.earningsHistory) && data.fundamentals.earningsHistory.length > 0) {
                     data.fundamentals.earningsHistory.forEach(e => {
                         const resultClass = e.result === 'Beat' ? 'text-green-400' : 'text-red-400';
                         const item = document.createElement('div');
@@ -322,18 +323,20 @@
                      earningsHistory.innerHTML = '<p class="text-sm text-gray-400">No earnings history available.</p>';
                 }
             } else {
-                fundamentalsSection.classList.add('hidden');
+                fundamentalsSection.style.display = 'none';
             }
 
             historicalAnalogueSummary.textContent = data.historicalAnalogue.summary;
             
             relatedNews.innerHTML = '';
-            data.relatedNews.slice(0, 3).forEach(headline => {
-                const item = document.createElement('p');
-                item.className = 'border-l-2 border-blue-500 pl-2';
-                item.textContent = headline;
-                relatedNews.appendChild(item);
-            });
+            if(data.relatedNews && Array.isArray(data.relatedNews)) {
+                data.relatedNews.slice(0, 3).forEach(headline => {
+                    const item = document.createElement('p');
+                    item.className = 'border-l-2 border-blue-500 pl-2';
+                    item.textContent = headline;
+                    relatedNews.appendChild(item);
+                });
+            }
 
             technicalSummary.innerHTML = `
                 <p class="mb-2">${data.analysis.summary}</p>
