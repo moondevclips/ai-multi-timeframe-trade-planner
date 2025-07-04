@@ -99,7 +99,7 @@
 
             try {
                 // This must be changed to your actual backend server URL when deployed.
-                const backendUrl = 'https://python-markets-livedata-backend.onrender.com/analyze-symbol'; // The corrected URL
+                const backendUrl = 'https://python-markets-livedata-backend.onrender.com/analyze-symbol';
 
                 const response = await fetch(backendUrl, {
                     method: 'POST',
@@ -107,16 +107,17 @@
                     body: JSON.stringify({ symbol: symbol })
                 });
 
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || `HTTP error! status: ${response.status}`);
-                }
-
+                // The .json() method on the response object automatically parses the JSON.
                 const data = await response.json();
-                // Gemini might return the JSON as a string inside its response text, so we parse it.
-                const parsedData = JSON.parse(data);
 
-                displayResults(parsedData, symbol);
+                if (!response.ok) {
+                    // If the server sent an error, its message will be in data.error
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                // *** FIX: The redundant JSON.parse() call has been removed. ***
+                // The 'data' variable is now the correct JavaScript object.
+                displayResults(data, symbol);
 
             } catch (error) {
                 console.error("Error fetching analysis:", error);
