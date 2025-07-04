@@ -13,6 +13,8 @@
         .loader { border: 5px solid #374151; border-top: 5px solid #2563eb; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .result-card { background-color: #1f2937; }
+        .asset-type-btn.active { background-color: #2563eb; color: white; }
+        .asset-type-btn { background-color: #374152; color: #9ca3af; }
     </style>
 </head>
 <body class="bg-gray-900 text-white flex items-center justify-center min-h-screen p-4">
@@ -20,22 +22,36 @@
     <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-3xl mx-auto">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-blue-400">Live Data AI Trade Planner</h1>
-            <p class="text-gray-400 mt-2">Enter a stock symbol to get a real-time, data-driven trade plan.</p>
+            <p class="text-gray-400 mt-2">Enter a symbol to get a real-time, data-driven trade plan.</p>
         </div>
 
         <!-- Input Section -->
-        <div class="flex gap-4 mb-4">
-            <input type="text" id="symbolInput" class="flex-grow bg-gray-700 border border-gray-600 text-white text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-3" placeholder="e.g., AAPL, TSLA, NVDA">
-            <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">Analyze</button>
+        <div class="mb-4">
+            <div class="flex justify-center mb-4">
+                <div class="inline-flex rounded-md shadow-sm" role="group">
+                    <button type="button" id="assetTypeStock" class="asset-type-btn active px-4 py-2 text-sm font-medium rounded-l-lg">
+                        Stocks
+                    </button>
+                    <button type="button" id="assetTypeCrypto" class="asset-type-btn px-4 py-2 text-sm font-medium rounded-r-lg">
+                        Crypto
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <input type="text" id="symbolInput" class="flex-grow bg-gray-700 border border-gray-600 text-white text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-3" placeholder="e.g., AAPL or BTC-USD">
+                <button id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">Analyze</button>
+            </div>
         </div>
         
         <!-- Results Section -->
         <div id="resultsContainer" class="hidden text-left p-6 bg-gray-900/50 rounded-lg mt-6">
             <div id="loader" class="loader mx-auto mb-4 hidden"></div>
             <div id="analysisResult" class="hidden">
-                 <h2 class="text-2xl font-bold text-blue-400 mb-4 text-center">Trade Execution Plan for <span id="resultSymbol" class="text-purple-400"></span></h2>
+                 <h2 class="text-2xl font-bold text-blue-400 mb-2 text-center">Trade Execution Plan for <span id="resultSymbol" class="text-purple-400"></span></h2>
+                 <div class="text-center mb-4">
+                    <button id="explainBtn" class="bg-indigo-600 text-sm hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-full transition">✨ Explain This Plan</button>
+                 </div>
                 
-                <!-- Quick Verdict Section -->
                 <div id="verdictSection" class="result-card p-6 rounded-lg text-center mb-6">
                     <p id="verdictEmoji" class="text-7xl mb-2"></p>
                     <p id="verdictText" class="text-4xl font-extrabold"></p>
@@ -53,8 +69,7 @@
                     <div class="result-card p-4 rounded-lg"><p class="text-sm text-gray-400">Exit Target</p><p id="exitPoint" class="text-2xl font-bold text-red-400"></p></div>
                 </div>
                 
-                <!-- Fundamental Analysis Section -->
-                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                <div id="fundamentalsSection" class="grid md:grid-cols-2 gap-4 mb-6">
                     <div class="result-card p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-blue-400 mb-2">Company Profile & Sector</h3>
                         <p id="companyInfo" class="text-gray-300 text-sm mb-2"></p>
@@ -62,33 +77,52 @@
                         <p id="sectorPerformance" class="text-gray-400 text-xs mt-1"></p>
                     </div>
                      <div class="result-card p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Key Metrics</h3>
-                        <p class="text-gray-300 text-sm"><strong class="text-gray-100">P/E Ratio:</strong> <span id="peRatio"></span></p>
-                        <p class="text-gray-300 text-sm mt-2"><strong class="text-gray-100">Upcoming Earnings:</strong> <span id="upcomingEarnings"></span></p>
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Earnings History</h3>
+                        <div id="earningsHistory" class="space-y-2"></div>
                     </div>
                 </div>
 
                 <div class="result-card p-4 rounded-lg mb-6">
-                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Market Sentiment Analysis</h3>
+                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Market Sentiment & News</h3>
                     <div class="flex items-center justify-center gap-4">
                         <p class="text-3xl font-bold text-center" id="sentiment"></p>
                     </div>
-                    <p id="sentimentSummary" class="text-gray-300 mt-2"></p>
+                    <p id="sentimentSummary" class="text-gray-300 mt-2 mb-4"></p>
+                    <div id="relatedNews" class="text-sm text-gray-400 space-y-2"></div>
                 </div>
 
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Probabilistic Assessment</h3><p class="text-3xl font-bold text-center mb-2" id="probability"></p><p id="assessment" class="text-gray-300"></p></div>
-                
-                <div class="result-card p-4 rounded-lg mb-6">
-                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Historical Analogue Analysis</h3>
-                    <p id="historicalAnalogueSummary" class="text-gray-300"></p>
+                <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Historical Analogue Analysis</h3><p id="historicalAnalogueSummary" class="text-gray-300"></p></div>
+                <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Technical Analysis Summary</h3><p id="technicalSummary" class="text-gray-300"></p></div>
+                <div class="result-card p-4 rounded-lg"><h3 class="text-lg font-semibold text-blue-400 mb-2">Execution Strategy</h3><p id="executionStrategy" class="text-gray-300"></p></div>
+            
+                <!-- NEW: Post-Trade Journal Section -->
+                <div id="journalSection" class="result-card p-6 rounded-lg text-center mt-6">
+                    <h3 class="text-lg font-semibold text-blue-400 mb-4">Post-Trade Analysis</h3>
+                    <p class="text-sm text-gray-400 mb-4">Once the trade is complete, select the outcome to generate a journal entry.</p>
+                    <div class="flex justify-center gap-4">
+                        <button id="tradeWonBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">✓ Trade Won (TP Hit)</button>
+                        <button id="tradeLostBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">✗ Trade Lost (SL Hit)</button>
+                    </div>
+                    <div id="journalResult" class="hidden mt-4 text-left p-4 bg-gray-900/50 rounded-lg">
+                        <h4 class="font-bold text-indigo-400 mb-2">✨ AI Trading Coach Journal</h4>
+                        <p id="journalText" class="text-gray-300 text-sm"></p>
+                    </div>
                 </div>
 
-                <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Technical Analysis Summary</h3><p id="technicalSummary" class="text-gray-300"></p></div>
-
-                <div class="result-card p-4 rounded-lg"><h3 class="text-lg font-semibold text-blue-400 mb-2">Execution Strategy</h3><p id="executionStrategy" class="text-gray-300"></p></div>
             </div>
              <p id="errorDisplay" class="text-red-400 text-center hidden"></p>
         </div>
+
+        <!-- Modal for Explanation -->
+        <div id="explanationModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+            <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">AI Explanation</h2>
+                <div id="explanationText" class="text-gray-300 max-h-96 overflow-y-auto"></div>
+                <button id="closeModalBtn" class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Close</button>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -98,6 +132,8 @@
         const loader = document.getElementById('loader');
         const analysisResult = document.getElementById('analysisResult');
         const errorDisplay = document.getElementById('errorDisplay');
+        const assetTypeStockBtn = document.getElementById('assetTypeStock');
+        const assetTypeCryptoBtn = document.getElementById('assetTypeCrypto');
 
         const resultSymbol = document.getElementById('resultSymbol');
         const entryPoint = document.getElementById('entryPoint');
@@ -111,27 +147,50 @@
         const executionStrategy = document.getElementById('executionStrategy');
         const tradePlanChartCanvas = document.getElementById('tradePlanChart');
         
-        // Fundamental Fields
+        const fundamentalsSection = document.getElementById('fundamentalsSection');
         const companyInfo = document.getElementById('companyInfo');
         const sector = document.getElementById('sector');
         const sectorPerformance = document.getElementById('sectorPerformance');
-        const peRatio = document.getElementById('peRatio');
-        const upcomingEarnings = document.getElementById('upcomingEarnings');
+        const earningsHistory = document.getElementById('earningsHistory');
         
-        // Historical Analogue Field
         const historicalAnalogueSummary = document.getElementById('historicalAnalogueSummary');
+        const relatedNews = document.getElementById('relatedNews');
 
-        // Verdict Fields
         const verdictEmoji = document.getElementById('verdictEmoji');
         const verdictText = document.getElementById('verdictText');
         const verdictReason = document.getElementById('verdictReason');
 
+        // New Feature Elements
+        const explainBtn = document.getElementById('explainBtn');
+        const explanationModal = document.getElementById('explanationModal');
+        const explanationText = document.getElementById('explanationText');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const tradeWonBtn = document.getElementById('tradeWonBtn');
+        const tradeLostBtn = document.getElementById('tradeLostBtn');
+        const journalResult = document.getElementById('journalResult');
+        const journalText = document.getElementById('journalText');
+
         let tradeChart = null;
+        let currentAssetType = 'stock';
+        let lastAnalysisResult = null;
+
+        assetTypeStockBtn.addEventListener('click', () => {
+            currentAssetType = 'stock';
+            assetTypeStockBtn.classList.add('active');
+            assetTypeCryptoBtn.classList.remove('active');
+            symbolInput.placeholder = "e.g., AAPL, TSLA, NVDA";
+        });
+        assetTypeCryptoBtn.addEventListener('click', () => {
+            currentAssetType = 'crypto';
+            assetTypeCryptoBtn.classList.add('active');
+            assetTypeStockBtn.classList.remove('active');
+            symbolInput.placeholder = "e.g., BTC-USD, ETH-USD";
+        });
 
         analyzeBtn.addEventListener('click', async () => {
             const symbol = symbolInput.value.trim().toUpperCase();
             if (!symbol) {
-                alert("Please enter a stock symbol.");
+                alert("Please enter a symbol.");
                 return;
             }
 
@@ -139,15 +198,15 @@
             loader.classList.remove('hidden');
             analysisResult.classList.add('hidden');
             errorDisplay.classList.add('hidden');
+            journalResult.classList.add('hidden'); // Hide old journal entries
 
             try {
-                // This must be changed to your actual backend server URL when deployed.
                 const backendUrl = 'https://python-markets-livedata-backend.onrender.com/analyze-symbol';
 
                 const response = await fetch(backendUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ symbol: symbol })
+                    body: JSON.stringify({ symbol: symbol, asset_class: currentAssetType })
                 });
 
                 const data = await response.json();
@@ -156,6 +215,7 @@
                     throw new Error(data.error || `HTTP error! status: ${response.status}`);
                 }
                 
+                lastAnalysisResult = data; // Save for new features
                 displayResults(data, symbol);
 
             } catch (error) {
@@ -166,13 +226,62 @@
                 loader.classList.add('hidden');
             }
         });
+        
+        // --- NEW FEATURE: Explanation ---
+        explainBtn.addEventListener('click', async () => {
+            if (!lastAnalysisResult) return;
+            explanationText.textContent = 'Asking the AI to explain...';
+            explanationModal.classList.remove('hidden');
+
+            try {
+                const backendUrl = 'https://python-markets-livedata-backend.onrender.com/explain-plan';
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lastAnalysisResult)
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                explanationText.textContent = data.text;
+            } catch (error) {
+                explanationText.textContent = `Error getting explanation: ${error.message}`;
+            }
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            explanationModal.classList.add('hidden');
+        });
+
+        // --- NEW FEATURE: Journaling ---
+        const handleJournalRequest = async (outcome) => {
+            if (!lastAnalysisResult) return;
+            journalText.textContent = 'Generating journal entry...';
+            journalResult.classList.remove('hidden');
+            
+            try {
+                const backendUrl = 'https://python-markets-livedata-backend.onrender.com/journalize-trade';
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trade_plan: lastAnalysisResult, outcome: outcome })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error);
+                journalText.textContent = data.text;
+            } catch (error) {
+                journalText.textContent = `Error generating journal entry: ${error.message}`;
+            }
+        };
+
+        tradeWonBtn.addEventListener('click', () => handleJournalRequest('Win'));
+        tradeLostBtn.addEventListener('click', () => handleJournalRequest('Loss'));
+
 
         function displayResults(data, symbol) {
             analysisResult.classList.remove('hidden');
             
             resultSymbol.textContent = symbol;
 
-            // Populate Verdict
             if (data.verdict.recommendation.toUpperCase() === 'YAY') {
                 verdictEmoji.textContent = '👍';
                 verdictText.textContent = 'YAY';
@@ -189,27 +298,42 @@
             exitPoint.textContent = `$${data.tradePlan.exit}`;
             
             sentiment.textContent = data.sentiment.rating;
-            if (data.sentiment.rating.toLowerCase() === 'bullish') {
-                sentiment.className = 'text-3xl font-bold text-center text-green-400';
-            } else if (data.sentiment.rating.toLowerCase() === 'bearish') {
-                sentiment.className = 'text-3xl font-bold text-center text-red-400';
-            } else {
-                sentiment.className = 'text-3xl font-bold text-center text-yellow-400';
-            }
             sentimentSummary.textContent = data.sentiment.summary;
 
             probability.textContent = data.confidence.probability;
             assessment.textContent = data.confidence.assessment;
             
-            // Populate fundamental fields
-            companyInfo.textContent = data.fundamentals.companyInfo;
-            sector.textContent = data.fundamentals.sector;
-            sectorPerformance.textContent = data.fundamentals.sectorPerformance;
-            peRatio.textContent = data.fundamentals.peRatio;
-            upcomingEarnings.textContent = data.fundamentals.upcomingEarnings;
+            if (currentAssetType === 'stock' && data.fundamentals) {
+                fundamentalsSection.classList.remove('hidden');
+                companyInfo.textContent = data.fundamentals.companyInfo;
+                sector.textContent = data.fundamentals.sector;
+                sectorPerformance.textContent = data.fundamentals.sectorPerformance;
+                
+                earningsHistory.innerHTML = '';
+                if(data.fundamentals.earningsHistory && Array.isArray(data.fundamentals.earningsHistory)) {
+                    data.fundamentals.earningsHistory.forEach(e => {
+                        const resultClass = e.result === 'Beat' ? 'text-green-400' : 'text-red-400';
+                        const item = document.createElement('div');
+                        item.className = 'text-sm';
+                        item.innerHTML = `<strong>${e.date}:</strong> <span class="${resultClass}">${e.result}</span> (Actual: ${e.epsActual || 'N/A'} vs Est: ${e.epsEstimate || 'N/A'})`;
+                        earningsHistory.appendChild(item);
+                    });
+                } else {
+                     earningsHistory.innerHTML = '<p class="text-sm text-gray-400">No earnings history available.</p>';
+                }
+            } else {
+                fundamentalsSection.classList.add('hidden');
+            }
 
-            // Populate historical analogue field
             historicalAnalogueSummary.textContent = data.historicalAnalogue.summary;
+            
+            relatedNews.innerHTML = '';
+            data.relatedNews.slice(0, 3).forEach(headline => {
+                const item = document.createElement('p');
+                item.className = 'border-l-2 border-blue-500 pl-2';
+                item.textContent = headline;
+                relatedNews.appendChild(item);
+            });
 
             technicalSummary.innerHTML = `
                 <p class="mb-2">${data.analysis.summary}</p>
