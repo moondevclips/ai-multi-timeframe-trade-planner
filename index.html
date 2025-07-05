@@ -69,41 +69,55 @@
                     <div class="result-card p-4 rounded-lg"><p class="text-sm text-gray-400">Exit Target</p><p id="exitPoint" class="text-2xl font-bold text-red-400"></p></div>
                 </div>
                 
-                <div id="fundamentalsSection" class="grid md:grid-cols-2 gap-4 mb-6">
+                <div id="quantitativeTechnicalsSection" class="result-card p-4 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold text-blue-400 mb-2">Quantitative Technicals (Alpha Vantage)</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                        <div><p class="text-sm text-gray-400">RSI (14)</p><p id="rsiValue" class="text-xl font-bold"></p></div>
+                        <div><p class="text-sm text-gray-400">EMA (14)</p><p id="emaValue" class="text-xl font-bold"></p></div>
+                        <div><p class="text-sm text-gray-400">SMA (14)</p><p id="smaValue" class="text-xl font-bold"></p></div>
+                    </div>
+                </div>
+                
+                <div id="fundamentalsSection" class="space-y-6 mb-6">
                     <div class="result-card p-4 rounded-lg">
                         <h3 class="text-lg font-semibold text-blue-400 mb-2">Company Profile & Sector</h3>
                         <p id="companyInfo" class="text-gray-300 text-sm mb-2"></p>
                         <p class="text-gray-300 text-sm"><strong class="text-gray-100">Sector:</strong> <span id="sector"></span></p>
-                        <p id="sectorPerformance" class="text-gray-400 text-xs mt-1"></p>
                     </div>
                      <div class="result-card p-4 rounded-lg">
-                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Earnings History</h3>
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Earnings & Financials</h3>
                         <p class="text-gray-300 text-sm mb-2"><strong class="text-gray-100">P/E Ratio:</strong> <span id="peRatio"></span></p>
-                        <div id="earningsHistory" class="space-y-2"></div>
+                        <div id="earningsHistory" class="space-y-2 mb-4"></div>
+                        <p id="financialStatementSummary" class="text-gray-300 text-sm"></p>
+                    </div>
+                    <div class="result-card p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold text-blue-400 mb-2">Insider Trading Summary</h3>
+                        <p id="insiderTradingSummary" class="text-gray-300 text-sm"></p>
                     </div>
                 </div>
 
                 <div class="result-card p-4 rounded-lg mb-6">
                     <h3 class="text-lg font-semibold text-blue-400 mb-2">Market Sentiment & News</h3>
-                    <div class="flex items-center justify-center gap-4">
-                        <p class="text-3xl font-bold text-center" id="sentiment"></p>
-                    </div>
                     <p id="sentimentSummary" class="text-gray-300 mt-2 mb-4"></p>
                     <div id="relatedNews" class="text-sm text-gray-400 space-y-2"></div>
                 </div>
 
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Probabilistic Assessment</h3><p class="text-3xl font-bold text-center mb-2" id="probability"></p><p id="assessment" class="text-gray-300"></p></div>
                 <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Historical Analogue Analysis</h3><p id="historicalAnalogueSummary" class="text-gray-300"></p></div>
-                <div class="result-card p-4 rounded-lg mb-6"><h3 class="text-lg font-semibold text-blue-400 mb-2">Technical Analysis Summary</h3><p id="technicalSummary" class="text-gray-300"></p></div>
+                
+                <!-- Restored 3-Level Analysis -->
+                <div id="threeLevelAnalysisSection" class="result-card p-4 rounded-lg mb-6">
+                     <h3 class="text-lg font-semibold text-blue-400 mb-2">3-Level Institutional Analysis</h3>
+                     <p id="technicalSummary" class="text-gray-300"></p>
+                </div>
+
                 <div class="result-card p-4 rounded-lg"><h3 class="text-lg font-semibold text-blue-400 mb-2">Execution Strategy</h3><p id="executionStrategy" class="text-gray-300"></p></div>
             
-                <!-- Post-Trade Journal Section -->
                 <div id="journalSection" class="result-card p-6 rounded-lg text-center mt-6">
                     <h3 class="text-lg font-semibold text-blue-400 mb-4">Post-Trade Analysis</h3>
-                    <p class="text-sm text-gray-400 mb-4">Once the trade is complete, select the outcome to generate a journal entry.</p>
                     <div class="flex justify-center gap-4">
-                        <button id="tradeWonBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">✓ Trade Won (TP Hit)</button>
-                        <button id="tradeLostBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">✗ Trade Lost (SL Hit)</button>
+                        <button id="tradeWonBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">✓ Trade Won</button>
+                        <button id="tradeLostBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">✗ Trade Lost</button>
                     </div>
                     <div id="journalResult" class="hidden mt-4 text-left p-4 bg-gray-900/50 rounded-lg">
                         <h4 class="font-bold text-indigo-400 mb-2">✨ AI Trading Coach Journal</h4>
@@ -140,7 +154,6 @@
         const entryPoint = document.getElementById('entryPoint');
         const stopLoss = document.getElementById('stopLoss');
         const exitPoint = document.getElementById('exitPoint');
-        const sentiment = document.getElementById('sentiment');
         const sentimentSummary = document.getElementById('sentimentSummary');
         const probability = document.getElementById('probability');
         const assessment = document.getElementById('assessment');
@@ -151,9 +164,10 @@
         const fundamentalsSection = document.getElementById('fundamentalsSection');
         const companyInfo = document.getElementById('companyInfo');
         const sector = document.getElementById('sector');
-        const sectorPerformance = document.getElementById('sectorPerformance');
         const earningsHistory = document.getElementById('earningsHistory');
         const peRatio = document.getElementById('peRatio');
+        const financialStatementSummary = document.getElementById('financialStatementSummary');
+        const insiderTradingSummary = document.getElementById('insiderTradingSummary');
         
         const historicalAnalogueSummary = document.getElementById('historicalAnalogueSummary');
         const relatedNews = document.getElementById('relatedNews');
@@ -170,6 +184,10 @@
         const tradeLostBtn = document.getElementById('tradeLostBtn');
         const journalResult = document.getElementById('journalResult');
         const journalText = document.getElementById('journalText');
+
+        const rsiValue = document.getElementById('rsiValue');
+        const emaValue = document.getElementById('emaValue');
+        const smaValue = document.getElementById('smaValue');
 
         let tradeChart = null;
         let currentAssetType = 'stock';
@@ -278,7 +296,6 @@
 
         function displayResults(data, symbol) {
             analysisResult.classList.remove('hidden');
-            
             resultSymbol.textContent = symbol;
 
             if (data.verdict.recommendation.toUpperCase() === 'YAY') {
@@ -296,21 +313,23 @@
             stopLoss.textContent = `$${data.tradePlan.stopLoss}`;
             exitPoint.textContent = `$${data.tradePlan.exit}`;
             
-            sentiment.textContent = data.sentiment.rating;
             sentimentSummary.textContent = data.sentiment.summary;
-
             probability.textContent = data.confidence.probability;
             assessment.textContent = data.confidence.assessment;
             
+            // Quantitative Technicals
+            rsiValue.textContent = parseFloat(data.quantitativeTechnicals.rsi).toFixed(2) || 'N/A';
+            emaValue.textContent = parseFloat(data.quantitativeTechnicals.ema).toFixed(2) || 'N/A';
+            smaValue.textContent = parseFloat(data.quantitativeTechnicals.sma).toFixed(2) || 'N/A';
+
             if (currentAssetType === 'stock' && data.fundamentals) {
                 fundamentalsSection.style.display = 'grid';
                 companyInfo.textContent = data.fundamentals.companyInfo || 'N/A';
                 sector.textContent = data.fundamentals.sector || 'N/A';
-                sectorPerformance.textContent = data.fundamentals.sectorPerformance || 'N/A';
+                peRatio.textContent = data.fundamentals.peRatio || 'N/A';
+                financialStatementSummary.textContent = data.fundamentals.financialStatementSummary || 'N/A';
+                insiderTradingSummary.textContent = data.fundamentals.insiderTradingSummary || 'N/A';
                 
-                const pe = data.fundamentals.peRatio !== undefined ? data.fundamentals.peRatio : 'N/A';
-                peRatio.textContent = pe;
-
                 earningsHistory.innerHTML = '';
                 if(data.fundamentals.earningsHistory && Array.isArray(data.fundamentals.earningsHistory) && data.fundamentals.earningsHistory.length > 0) {
                     data.fundamentals.earningsHistory.forEach(e => {
@@ -339,14 +358,8 @@
                 });
             }
 
-            technicalSummary.innerHTML = `
-                <p class="mb-2">${data.analysis.summary}</p>
-                <p class="mb-2"><strong class="text-gray-300">Patterns:</strong> ${data.analysis.patterns.join(', ')}</p>
-                <p><strong class="text-gray-300">Indicators:</strong> ${data.analysis.indicators}</p>
-            `;
-
+            technicalSummary.innerHTML = data.analysis.summary;
             executionStrategy.textContent = data.executionStrategy;
-            
             drawVisualPlan(data.tradePlan);
         }
 
