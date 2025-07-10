@@ -1,193 +1,398 @@
-# To run this server:
-# 1. Make sure you have Python installed.
-# 2. Install the necessary libraries:
-#    pip install Flask flask-cors requests google-generativeai gunicorn numpy
-# 3. Save this code as a file (e.g., server.py).
-# 4. Set up your API keys as environment variables on your hosting platform.
-# 5. In your terminal, run the server: python server.py
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Multi-Timeframe Trade Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/1.4.0/chartjs-plugin-annotation.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+        }
+        .main-container {
+            border: 1px solid transparent;
+            border-radius: 1.5rem;
+            box-shadow: 0 0 20px 5px rgba(56, 189, 248, 0.2);
+            background: linear-gradient(#121212, #121212) padding-box,
+                        linear-gradient(to right, #38bdf8, #38bdf8) border-box;
+        }
+        .upload-zone {
+            border: 2px dashed #4b5563;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+        .upload-zone.uploaded {
+            border-color: #10b981;
+            border-style: solid;
+            padding: 0;
+        }
+        .upload-zone .preview-img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 0.75rem;
+        }
+        .verdict-yay { color: #4ade80; }
+        .verdict-nay { color: #f87171; }
+        .loader { border: 5px solid #374151; border-top: 5px solid #38bdf8; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="w-full max-w-7xl mx-auto bg-[#121212] rounded-3xl p-6 sm:p-8 lg:p-12 main-container">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">AI Multi-Timeframe Trade Planner</h1>
+            <p class="text-gray-400 mt-2 text-lg">Upload your charts, let AI handle the analysis.</p>
+        </header>
 
-import os
-import requests
-import google.generativeai as genai
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from datetime import datetime, timedelta
-import json
-import logging
-import numpy as np # NEW: Import numpy for calculations
+        <div class="mb-12">
+            <div class="mb-8">
+                <label class="block text-lg font-semibold mb-3 text-gray-200" for="symbolInput">Stock/Asset Symbol</label>
+                <input class="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all" id="symbolInput" placeholder="e.g., AAPL, BTCUSD" type="text"/>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8" id="upload-container">
+                <!-- Upload slots will be dynamically generated here -->
+            </div>
+        </div>
 
-# --- Configuration ---
-# Set up your API keys as Environment Variables in your hosting provider's dashboard.
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "PASTE_YOUR_GEMINI_API_KEY_HERE")
-POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY", "PASTE_YOUR_POLYGON_API_KEY_HERE")
-NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "PASTE_YOUR_NEWSAPI_API_KEY_HERE")
-FMP_API_KEY = os.environ.get("FMP_API_KEY", "PASTE_YOUR_FMP_API_KEY_HERE")
-ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY", "PASTE_YOUR_ALPHA_VANTAGE_API_KEY_HERE")
+        <button id="analyzeBtn" class="w-full bg-sky-600 text-white font-bold py-4 px-4 rounded-lg text-lg hover:bg-sky-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            Generate Trade Plan
+        </button>
 
-# --- Flask App Setup ---
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+        <div id="resultsContainer" class="hidden border-t border-gray-800 my-8 pt-8">
+            <div id="loader" class="loader mx-auto mb-4 hidden"></div>
+            <div id="analysisResult" class="hidden">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold">Analysis for <span id="resultSymbol" class="text-sky-400"></span></h2>
+                    <button id="explainBtn" class="bg-sky-500/20 text-sky-400 py-2 px-4 rounded-full text-sm font-semibold flex items-center gap-2 hover:bg-sky-500/30 transition-all">
+                        ✨ Explain This Plan
+                    </button>
+                </div>
 
-# --- Logging Configuration ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+                <div class="bg-gray-900/50 rounded-2xl p-6 sm:p-8 mb-8 text-center flex flex-col items-center" id="verdictSection">
+                    <span id="verdictEmoji" class="text-6xl mb-2"></span>
+                    <p id="verdictText" class="text-4xl font-bold mb-2"></p>
+                    <p id="verdictReason" class="text-gray-300 max-w-md"></p>
+                </div>
 
-# --- Configure the Gemini API ---
-model = None
-if GOOGLE_API_KEY and GOOGLE_API_KEY != "PASTE_YOUR_GEMINI_API_KEY_HERE":
-    try:
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        app.logger.info("Gemini API configured successfully.")
-    except Exception as e:
-        app.logger.error(f"Error configuring Gemini API: {e}")
-else:
-    app.logger.warning("Gemini API key is not configured.")
+                <div class="bg-gray-900/50 rounded-2xl p-6 sm:p-8 mb-8">
+                    <h3 class="text-xl font-semibold mb-4">Visual Plan</h3>
+                    <div class="w-full h-64 bg-gray-800 rounded-lg">
+                        <canvas id="tradePlanChart"></canvas>
+                    </div>
+                </div>
 
-# --- API Helper Functions ---
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="bg-gray-900/50 rounded-2xl p-6">
+                        <h3 class="text-xl font-semibold mb-4">Trade Levels</h3>
+                        <ul class="space-y-3">
+                            <li class="flex justify-between items-center"><span class="text-gray-400">Entry Price</span><span id="entryPoint" class="font-mono text-sky-400"></span></li>
+                            <li class="flex justify-between items-center"><span class="text-gray-400">Stop Loss</span><span id="stopLoss" class="font-mono text-red-400"></span></li>
+                            <li class="flex justify-between items-center"><span class="text-gray-400">Take Profit</span><span id="exitPoint" class="font-mono text-green-400"></span></li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-900/50 rounded-2xl p-6">
+                        <h3 class="text-xl font-semibold mb-4">Probabilistic Assessment</h3>
+                        <ul class="space-y-3">
+                            <li class="flex justify-between items-center"><span class="text-gray-400">Success Probability</span><span id="probability" class="font-mono text-green-400"></span></li>
+                            <li class="flex justify-between items-center"><span class="text-gray-400">Confidence Score</span><span id="assessment" class="font-mono text-white"></span></li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-900/50 rounded-2xl p-6">
+                        <h3 class="text-xl font-semibold mb-4">Execution Strategy</h3>
+                        <p id="executionStrategy" class="text-gray-400 text-sm leading-relaxed"></p>
+                    </div>
+                    <div id="timeframeAnalysis" class="bg-gray-900/50 rounded-2xl p-6 lg:col-span-3">
+                        <!-- Timeframe analysis cards will be injected here -->
+                    </div>
+                </div>
+            </div>
+             <p id="errorDisplay" class="text-red-400 text-center hidden"></p>
+        </div>
+        
+        <!-- Modal for Explanation -->
+        <div id="explanationModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+            <div class="bg-gray-800 rounded-lg p-8 max-w-2xl w-full main-container">
+                <h2 class="text-2xl font-bold text-sky-400 mb-4">AI Explanation</h2>
+                <div id="explanationText" class="text-gray-300 max-h-96 overflow-y-auto pr-4"></div>
+                <button id="closeModalBtn" class="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
 
-def make_api_request(url, service_name):
-    """Generic function to make a request and handle errors."""
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f"Error fetching data from {service_name}: {e}")
-        return None
+    <script>
+        // --- DOM Elements ---
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const symbolInput = document.getElementById('symbolInput');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loader = document.getElementById('loader');
+        const analysisResult = document.getElementById('analysisResult');
+        const errorDisplay = document.getElementById('errorDisplay');
+        const uploadContainer = document.getElementById('upload-container');
 
-def get_market_data(symbol, asset_class):
-    if not POLYGON_API_KEY or POLYGON_API_KEY == "PASTE_YOUR_POLYGON_API_KEY_HERE": return None
-    if asset_class.lower() == 'crypto':
-        symbol = f"X:{symbol.upper()}"
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=5*365)
-    url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}?adjusted=true&sort=asc&limit=5000&apiKey={POLYGON_API_KEY}"
-    return make_api_request(url, "Polygon.io Market Data")
+        const resultSymbol = document.getElementById('resultSymbol');
+        const entryPoint = document.getElementById('entryPoint');
+        const stopLoss = document.getElementById('stopLoss');
+        const exitPoint = document.getElementById('exitPoint');
+        const probability = document.getElementById('probability');
+        const assessment = document.getElementById('assessment');
+        const executionStrategy = document.getElementById('executionStrategy');
+        const tradePlanChartCanvas = document.getElementById('tradePlanChart');
+        const timeframeAnalysisContainer = document.getElementById('timeframeAnalysis');
 
-def calculate_sharpe_ratio(price_data, risk_free_rate=0.02):
-    """Calculates the annualized Sharpe Ratio from daily price data."""
-    if not price_data or len(price_data) < 2:
-        return "N/A"
-    
-    prices = [item['c'] for item in price_data]
-    daily_returns = (np.array(prices[1:]) - np.array(prices[:-1])) / np.array(prices[:-1])
-    
-    if np.std(daily_returns) == 0:
-        return "N/A" # Avoid division by zero if there's no volatility
+        const verdictEmoji = document.getElementById('verdictEmoji');
+        const verdictText = document.getElementById('verdictText');
+        const verdictReason = document.getElementById('verdictReason');
 
-    excess_returns = daily_returns - (risk_free_rate / 252)
-    sharpe_ratio = np.mean(excess_returns) / np.std(excess_returns)
-    annualized_sharpe = sharpe_ratio * np.sqrt(252)
-    
-    return round(annualized_sharpe, 2)
+        const explainBtn = document.getElementById('explainBtn');
+        const explanationModal = document.getElementById('explanationModal');
+        const explanationText = document.getElementById('explanationText');
+        const closeModalBtn = document.getElementById('closeModalBtn');
 
+        let tradeChart = null;
+        let chartSlots = [];
+        let nextSlotId = 1;
+        let lastAnalysisResult = null;
 
-def get_alpha_vantage_data(function, symbol, interval='daily'):
-    if not ALPHA_VANTAGE_API_KEY or ALPHA_VANTAGE_API_KEY == "PASTE_YOUR_ALPHA_VANTAGE_API_KEY_HERE": return None
-    base_url = f"https://www.alphavantage.co/query?function={function}&symbol={symbol}&apikey={ALPHA_VANTAGE_API_KEY}"
-    if function in ["RSI", "EMA", "SMA"]:
-        url = f"{base_url}&interval={interval}&time_period=14&series_type=close"
-    elif function == "VWAP":
-        url = f"{base_url}&interval={interval}"
-    else:
-        url = base_url
-    return make_api_request(url, f"Alpha Vantage {function}")
+        function createUploadSlot(container) {
+            const slotId = nextSlotId++;
+            const defaultTimeframes = { 1: 'Daily', 2: '4-Hour', 3: '1-Hour' };
+            const defaultTimeframe = defaultTimeframes[slotId] || '15-Minute';
 
-def get_news_data(symbol):
-    if not NEWS_API_KEY or NEWS_API_KEY == "PASTE_YOUR_NEWSAPI_API_KEY_HERE": return None
-    url = f"https://newsapi.org/v2/everything?q={symbol}&sortBy=relevancy&pageSize=20&apiKey={NEWS_API_KEY}"
-    return make_api_request(url, "NewsAPI")
+            const slot = { id: slotId, timeframe: defaultTimeframe, base64: null, fileName: null };
+            chartSlots.push(slot);
 
-# --- Endpoints ---
-@app.route('/', methods=['GET'])
-def health_check():
-    return jsonify({"status": "ok", "message": "Backend server is running."}), 200
+            const slotEl = document.createElement('div');
+            slotEl.innerHTML = `
+                <div class="mb-3 flex justify-between items-center">
+                    <label class="text-base font-medium text-gray-300" for="timeframe${slotId}">Timeframe</label>
+                    <select class="bg-gray-800 border border-gray-700 rounded-md py-1 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500" id="timeframe${slotId}" data-slot-id="${slotId}">
+                        <option>Daily</option>
+                        <option>4-Hour</option>
+                        <option>1-Hour</option>
+                        <option>Weekly</option>
+                        <option>Monthly</option>
+                    </select>
+                </div>
+                <div class="upload-zone rounded-xl p-6 flex flex-col items-center justify-center text-center h-48" id="uploadZone${slotId}" data-slot-id="${slotId}">
+                    <input type="file" class="hidden" id="uploader${slotId}" accept="image/*">
+                    <div class="upload-content">
+                        <span class="material-icons text-gray-500 text-4xl mb-2">cloud_upload</span>
+                        <p class="text-gray-400">Drag & drop or click to upload</p>
+                    </div>
+                    <img id="preview${slotId}" class="hidden preview-img">
+                </div>
+            `;
+            container.appendChild(slotEl);
+            slotEl.querySelector(`#timeframe${slotId}`).value = defaultTimeframe;
+            setupUploaderLogic(slotId);
+        }
 
-@app.route('/analyze-symbol', methods=['POST'])
-def analyze_symbol():
-    if not model: return jsonify({"error": "Gemini AI model is not configured."}), 503
-    data = request.get_json()
-    symbol, asset_class = data.get('symbol'), data.get('asset_class', 'stock')
-    if not symbol: return jsonify({"error": "Symbol is required."}), 400
+        function setupUploaderLogic(slotId) {
+            const uploadZone = document.getElementById(`uploadZone${slotId}`);
+            const uploader = document.getElementById(`uploader${slotId}`);
+            const timeframeSelect = document.getElementById(`timeframe${slotId}`);
+            const slotData = chartSlots.find(s => s.id === slotId);
 
-    app.logger.info(f"Starting analysis for symbol: {symbol}, asset class: {asset_class}")
-    market_data = get_market_data(symbol, asset_class)
-    news_data = get_news_data(symbol)
-    
-    av_symbol = symbol.split('-')[0]
-    rsi_data = get_alpha_vantage_data("RSI", av_symbol)
-    ema_data = get_alpha_vantage_data("EMA", av_symbol)
-    sma_data = get_alpha_vantage_data("SMA", av_symbol)
-    macd_data = get_alpha_vantage_data("MACD", av_symbol)
-    vwap_data = get_alpha_vantage_data("VWAP", av_symbol, interval='60min')
+            timeframeSelect.addEventListener('change', (e) => {
+                slotData.timeframe = e.target.value;
+            });
 
-    if not market_data or not news_data:
-        return jsonify({"error": "Failed to fetch essential market or news data."}), 500
+            const handleFile = (file) => {
+                if (!file || !file.type.startsWith('image/')) {
+                    alert('Please upload an image file.');
+                    return;
+                }
+                slotData.fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(`preview${slotId}`);
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    uploadZone.querySelector('.upload-content').classList.add('hidden');
+                    uploadZone.classList.add('uploaded');
+                    slotData.base64 = e.target.result.split(',')[1];
+                    checkButtonsState();
+                }
+                reader.readAsDataURL(file);
+            };
 
-    # Calculate Sharpe Ratio
-    sharpe_ratio = calculate_sharpe_ratio(market_data.get('results', [])[-90:]) # Use last 90 days
+            uploadZone.addEventListener('click', () => uploader.click());
+            uploader.addEventListener('change', (event) => handleFile(event.target.files[0]));
+            
+            uploadZone.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+            uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+            uploadZone.addEventListener('drop', (event) => {
+                event.preventDefault();
+                uploadZone.classList.remove('dragover');
+                handleFile(event.dataTransfer.files[0]);
+            });
+        }
+        
+        function checkButtonsState() {
+            const allInitialUploaded = chartSlots.slice(0, 3).every(s => s.base64);
+            analyzeBtn.disabled = !allInitialUploaded;
+        }
 
-    technicals_summary = {
-        "rsi": rsi_data.get("Technical Analysis: RSI", {}).get(next(iter(rsi_data.get("Technical Analysis: RSI", {})), None), {}).get("RSI") if rsi_data else "N/A",
-        "ema": ema_data.get("Technical Analysis: EMA", {}).get(next(iter(ema_data.get("Technical Analysis: EMA", {})), None), {}).get("EMA") if ema_data else "N/A",
-        "sma": sma_data.get("Technical Analysis: SMA", {}).get(next(iter(sma_data.get("Technical Analysis: SMA", {})), None), {}).get("SMA") if sma_data else "N/A",
-        "macd": macd_data.get("Technical Analysis: MACD", {}).get(next(iter(macd_data.get("Technical Analysis: MACD", {})), None), {}) if macd_data else "N/A",
-        "vwap": vwap_data.get("Technical Analysis: VWAP", {}).get(next(iter(vwap_data.get("Technical Analysis: VWAP", {})), None), {}).get("VWAP") if vwap_data else "N/A",
-        "sharpeRatio": sharpe_ratio
-    }
-    
-    prompt = f"""
-    You are an expert institutional-level financial analyst. Your task is to perform a deep, multi-layered analysis of the provided data for the symbol {symbol} to formulate a high-quality swing trade setup.
+        async function performAnalysis() {
+            resultsContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            analysisResult.classList.add('hidden');
+            errorDisplay.classList.add('hidden');
 
-    **1. Quantitative Technical Data:**
-    {str(technicals_summary)}
+            try {
+                const activeSlots = chartSlots.filter(s => s.base64);
+                const payload = {
+                    symbol: symbolInput.value.trim().toUpperCase(),
+                    charts: activeSlots.map(s => ({ timeframe: s.timeframe, image: s.base64 }))
+                };
 
-    **2. Market Data (OHLCV for last year):**
-    {str(market_data.get('results', [])[-365:])}
+                // The backendUrl now points to the local API route Vercel will create.
+                const backendUrl = '/api/handler';
 
-    **3. Recent News Headlines:**
-    {[article.get('title', '') for article in news_data.get('articles', [])]}
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || `HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                lastAnalysisResult = data;
+                displayResults(data, payload.symbol);
 
-    **Your Analysis Process:**
-    1.  **Risk/Reward Profile:** This is crucial. Based on the quantitative technical data, provide a summary of the risk-to-reward profile. Explain how each metric (RSI, EMA, SMA, MACD, VWAP, Sharpe Ratio) contributes to this assessment. For example, 'A high Sharpe Ratio suggests good risk-adjusted returns, which supports a bullish thesis.'
-    2.  **News Sentiment Analysis:** Determine the current market sentiment from the headlines.
-    3.  **Price Action Analysis (3-Level Framework):** Analyze the OHLCV data to identify the current market structure (Retail, Stop-Hunt, Institutional zones).
-    4.  **Historical Analogue Analysis:** Search the historical data for similar patterns and their outcomes.
-    5.  **Final Verdict:** Synthesize ALL data points to provide a "YAY" or "NAY" verdict and a concise reason.
+            } catch (error) {
+                console.error("Error fetching analysis:", error);
+                errorDisplay.textContent = `Error: ${error.message}`;
+                errorDisplay.classList.remove('hidden');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
 
-    **Goal:** Create a complete swing trade plan designed to reach its take profit target within the 4-hour mark of the trading day.
+        function displayResults(data, symbol) {
+            analysisResult.classList.remove('hidden');
+            resultSymbol.textContent = symbol;
 
-    **Output Format:**
-    Return a single, minified JSON object with NO markdown formatting, following this exact structure:
-    {{
-      "tradePlan": {{ "entry": "...", "exit": "...", "stopLoss": "..." }},
-      "verdict": {{ "recommendation": "YAY/NAY", "reason": "..." }},
-      "quantitativeTechnicals": {json.dumps(technicals_summary)},
-      "riskRewardProfile": "Your detailed explanation of how the metrics influence the risk/reward.",
-      "sentiment": {{ "rating": "...", "summary": "..." }},
-      "confidence": {{ "probability": "...", "assessment": "..." }},
-      "historicalAnalogue": {{ "summary": "..." }},
-      "analysis": {{ "summary": "...", "patterns": ["..."], "indicators": "..." }},
-      "executionStrategy": "...",
-      "relatedNews": ["..."]
-    }}
-    """
-    return _get_gemini_response(prompt)
+            if (data.verdict.recommendation.toUpperCase() === 'YAY') {
+                verdictEmoji.textContent = '👍';
+                verdictText.className = 'text-4xl font-bold verdict-yay mb-2';
+                verdictText.textContent = 'YAY';
+            } else {
+                verdictEmoji.textContent = '👎';
+                verdictText.className = 'text-4xl font-bold verdict-nay mb-2';
+                verdictText.textContent = 'NAY';
+            }
+            verdictReason.textContent = data.verdict.reason;
 
-def _get_gemini_response(prompt, text_only=False):
-    """Helper function to call Gemini and handle responses."""
-    try:
-        app.logger.info("Sending prompt to Gemini API...")
-        response = model.generate_content(prompt)
-        raw_text = response.text
-        if text_only: return jsonify({"text": raw_text}), 200
-        app.logger.info("Received response from Gemini. Attempting to parse JSON.")
-        if raw_text.strip().startswith("```json"): raw_text = raw_text.strip()[7:-3]
-        json_data = json.loads(raw_text)
-        return jsonify(json_data), 200
-    except Exception as e:
-        app.logger.error(f"Error during Gemini analysis: {e}")
-        return jsonify({"error": "Failed to get analysis from AI model."}), 500
+            entryPoint.textContent = `$${data.tradePlan.entry}`;
+            stopLoss.textContent = `$${data.tradePlan.stopLoss}`;
+            exitPoint.textContent = `$${data.tradePlan.exit}`;
+            
+            probability.textContent = data.confidence.probability;
+            assessment.textContent = data.confidence.assessment;
+            
+            timeframeAnalysisContainer.innerHTML = `<h3 class="text-xl font-semibold mb-4">Timeframe Analysis</h3>`;
+            const analysisGrid = document.createElement('div');
+            analysisGrid.className = 'grid grid-cols-1 md:grid-cols-3 gap-4';
+            timeframeAnalysisContainer.appendChild(analysisGrid);
 
-if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=True)
+            const sortedTimeframes = Object.keys(data.analysis).sort((a, b) => {
+                const order = ['Monthly', 'Weekly', 'Daily', '4-Hour', '1-Hour'];
+                return order.indexOf(a) - order.indexOf(b);
+            });
+
+            for (const timeframe of sortedTimeframes) {
+                const tfData = data.analysis[timeframe];
+                if (!tfData) continue;
+                const card = document.createElement('div');
+                card.innerHTML = `
+                    <p class="font-semibold text-gray-200 mb-2">${timeframe}</p>
+                    <p class="text-gray-400 text-sm">${tfData.summary}</p>
+                `;
+                analysisGrid.appendChild(card);
+            }
+
+            executionStrategy.textContent = data.executionStrategy;
+            drawVisualPlan(data.tradePlan);
+        }
+
+        function drawVisualPlan(tradePlan) {
+            if (tradeChart) tradeChart.destroy();
+            
+            const entry = parseFloat(tradePlan.entry);
+            const exit = parseFloat(tradePlan.exit);
+            const stop = parseFloat(tradePlan.stopLoss);
+            
+            tradePlanChartCanvas.getContext('2d').clearRect(0, 0, tradePlanChartCanvas.width, tradePlanChartCanvas.height);
+            const labels = Array.from({length: 20}, (_, i) => i + 1);
+            const priceData = Array.from({length: 20}, () => Math.random() * (exit - stop) + stop);
+
+            tradeChart = new Chart(tradePlanChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Simulated Price Action',
+                        data: priceData,
+                        borderColor: '#9CA3AF',
+                        borderWidth: 2,
+                        tension: 0.2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    scales: { y: { display: false }, x: { display: false } },
+                    plugins: {
+                        legend: { display: false },
+                        annotation: {
+                            annotations: {
+                                entryLine: { type: 'line', yMin: entry, yMax: entry, borderColor: '#38bdf8', borderWidth: 2, borderDash: [6, 6], label: { content: `Entry: ${tradePlan.entry}`, enabled: true, position: 'start', backgroundColor: 'rgba(56, 189, 248, 0.8)', font: { weight: 'bold' } } },
+                                exitLine: { type: 'line', yMin: exit, yMax: exit, borderColor: '#4ade80', borderWidth: 2, borderDash: [6, 6], label: { content: `Take Profit: ${tradePlan.exit}`, enabled: true, position: 'start', backgroundColor: 'rgba(74, 222, 128, 0.8)', font: { weight: 'bold' } } },
+                                stopLossLine: { type: 'line', yMin: stop, yMax: stop, borderColor: '#f87171', borderWidth: 2, borderDash: [6, 6], label: { content: `Stop Loss: ${tradePlan.stopLoss}`, enabled: true, position: 'start', backgroundColor: 'rgba(248, 113, 113, 0.8)', font: { weight: 'bold' } } }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // --- Event Listeners ---
+        analyzeBtn.addEventListener('click', () => performAnalysis());
+        
+        explainBtn.addEventListener('click', () => {
+            explanationText.textContent = "This feature will be connected to the AI in a future version.";
+            explanationModal.classList.remove('hidden');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            explanationModal.classList.add('hidden');
+        });
+        
+        // --- Initial Setup ---
+        createUploadSlot(uploadContainer);
+        createUploadSlot(uploadContainer);
+        createUploadSlot(uploadContainer);
+        checkButtonsState();
+    </script>
+</body>
+</html>
