@@ -9,7 +9,7 @@ GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # --- Configure the Gemini API ---
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemma-3-27b-it')
 
 class handler(BaseHTTPRequestHandler):
 
