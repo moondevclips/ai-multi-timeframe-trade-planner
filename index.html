@@ -165,6 +165,7 @@
         let chartSlots = [];
         let nextSlotId = 1;
         let lastAnalysisResult = null;
+        let isCoolingDown = false;
 
         function createUploadSlot(container) {
             const slotId = nextSlotId++;
@@ -245,11 +246,35 @@
         }
         
         function checkButtonsState() {
+            if (isCoolingDown) return;
             const allInitialUploaded = chartSlots.slice(0, 3).every(s => s.base64);
             analyzeBtn.disabled = !allInitialUploaded;
         }
 
+        function startCooldown(seconds) {
+            isCoolingDown = true;
+            analyzeBtn.disabled = true;
+            let remaining = seconds;
+            const originalText = 'Generate Trade Plan';
+            
+            const interval = setInterval(() => {
+                if (remaining > 0) {
+                    analyzeBtn.textContent = `Please wait (${remaining}s)`;
+                    remaining--;
+                } else {
+                    clearInterval(interval);
+                    analyzeBtn.textContent = originalText;
+                    isCoolingDown = false;
+                    checkButtonsState();
+                }
+            }, 1000);
+        }
+
         async function performAnalysis() {
+            if (isCoolingDown) return;
+            
+            startCooldown(60); // Start 60-second cooldown
+
             resultsContainer.classList.remove('hidden');
             loader.classList.remove('hidden');
             analysisResult.classList.add('hidden');
